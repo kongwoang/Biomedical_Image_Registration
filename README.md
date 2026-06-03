@@ -113,20 +113,139 @@ By default this extracts only:
 - `label/*.label`
 
 Extracted files are placed under `data/oasis/freesurfer/subjects/`. Archives are kept under `data/oasis/freesurfer/raw/` only while they are being downloaded or extracted.
+# BioMedReg
 
-Prepare small 3D NIfTI pairs from extracted FreeSurfer subjects:
+BioMedReg is a reproducible biomedical image registration repository that provides:
+
+- classical registration baselines with SimpleITK and optional ANTsPyX support
+- a from-scratch PSO-based registration baseline
+- lightweight VoxelMorph-style and TransMorph-style PyTorch baselines
+- synthetic-data generators and small smoke-test pipelines for repeatable runs
+
+The code is designed to be runnable end to end on small synthetic examples, and to support compact OASIS-1 FreeSurfer preprocessing for 3D smoke tests and benchmarking.
+
+## Reproducibility Goals
+
+This repository is intended to make it easy to:
+
+1. install dependencies
+2. generate synthetic datasets
+3. train or run each method
+4. validate the full pipeline with tests and smoke tests
+
+The learning-based models are intentionally small baselines. They are not exact reproductions of the original VoxelMorph or TransMorph training recipes.
+
+## Environment Setup
+
+Create and activate a local virtual environment, then install dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+If your system already provides PyTorch, you may also create the environment with system packages enabled:
+
+```bash
+python -m venv --system-site-packages .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Quick Reproduction Path
+
+### 1. Generate synthetic data
+
+```bash
+python scripts/make_synthetic_data.py --out data/synthetic --num_pairs 20 --size 128
+```
+
+Each generated pair typically includes:
+
+- fixed and moving NIfTI volumes
+- affine ground-truth metadata
+- displacement-field ground truth for synthetic data
+- a preview image
+- a dataset manifest
+
+### 2. Run a method
+
+Classical registration:
+
+```bash
+python -m src.run_method --method classical --fixed data/synthetic/fixed_000.nii.gz --moving data/synthetic/moving_000.nii.gz --out outputs/classical
+```
+
+PSO registration:
+
+```bash
+python -m src.run_method --method pso --fixed data/synthetic/fixed_000.nii.gz --moving data/synthetic/moving_000.nii.gz --out outputs/pso
+```
+
+Train and run VoxelMorph:
+
+```bash
+python -m src.methods.voxelmorph.train --config configs/voxelmorph.yaml
+python -m src.run_method --method voxelmorph --fixed data/synthetic/fixed_000.nii.gz --moving data/synthetic/moving_000.nii.gz --checkpoint outputs/voxelmorph/best.pt --out outputs/voxelmorph
+```
+
+Train and run TransMorph:
+
+```bash
+python -m src.methods.transmorph.train --config configs/transmorph.yaml
+python -m src.run_method --method transmorph --fixed data/synthetic/fixed_000.nii.gz --moving data/synthetic/moving_000.nii.gz --checkpoint outputs/transmorph/best.pt --out outputs/transmorph
+```
+
+### 3. Validate the pipeline
+
+Run the full smoke test suite:
+
+```bash
+bash scripts/run_all_smoke_tests.sh
+```
+
+Expected success message:
+
+```text
+ALL 4 METHODS SMOKE TEST PASSED
+```
+
+## OASIS-1 FreeSurfer Reproduction Path
+
+For 3D experiments, this repo supports OASIS-1 FreeSurfer subject data. These archives contain MRI volumes and segmentation labels such as `aseg.mgz` and `aparc+aseg.mgz`.
+
+### 1. Download and extract FreeSurfer subjects
+
+```bash
+python scripts/download_freesurfer_discs.py --disc 1-11
+```
+
+By default, this extracts only the files needed for the smoke-test workflow:
+
+- `mri/T1.mgz`
+- `mri/norm.mgz`
+- `mri/brain.mgz`
+- `mri/brainmask.mgz`
+- `mri/aseg.mgz`
+- `mri/aparc+aseg.mgz`
+- `label/*.label`
+
+Extracted subject files are written to `data/oasis/freesurfer/subjects/`.
+
+### 2. Prepare small 3D pairs
 
 ```bash
 python scripts/prepare_freesurfer_3d.py --subjects-root data/oasis/freesurfer/subjects --out data/oasis/freesurfer_3d_smoke --num_pairs 3 --size 32
 ```
 
-Run the four-method FreeSurfer smoke test:
+### 3. Run the FreeSurfer smoke test
 
 ```bash
 bash scripts/run_freesurfer_smoke_tests.sh
 ```
 
-The expected final line is:
+Expected success message:
 
 ```text
 ALL 4 FREESURFER METHODS SMOKE TEST PASSED
@@ -142,35 +261,25 @@ Prepared FreeSurfer pairs include:
 - `pair_000.json`
 - `dataset.json`
 
-Real OASIS-1 FreeSurfer data provide anatomical labels, but not dense ground-truth deformation fields. The prepared dataset records source subject metadata instead of synthetic ground truth transforms.
+Note: real OASIS-1 FreeSurfer data provide anatomical labels, but not dense ground-truth deformation fields. The prepared dataset stores source subject metadata instead of synthetic ground-truth transforms.
 
-## Dataset Helpers
+## Testing
 
-External datasets are not required for the synthetic milestone. The older helper remains only to report manual access requirements:
-
-```bash
-python scripts/download_datasets.py --dataset oasis --out data
-python scripts/download_datasets.py --dataset dirlab --out data
-python scripts/download_datasets.py --dataset all --out data
-```
-
-DIR-Lab 4DCT case packets are password protected. Complete the Emory DIR-Lab access request form, download the provided case packets, extract them, and place files under `data/dirlab/`. The helper does not create placeholder datasets or claim that data are available when manual access is required.
-
-## Tests
+Run unit tests with:
 
 ```bash
 python -m pytest -q
 ```
 
-## Benchmark
+## Benchmarking
 
-Run a small functional benchmark over prepared NIfTI pairs. This trains the learned methods first, then runs all four methods and writes per-pair CSV/JSON plus a Markdown summary:
+Run the small functional benchmark on prepared NIfTI pairs:
 
 ```bash
 python scripts/run_benchmark.py --dataset-root data/oasis/freesurfer_3d_smoke --out outputs/benchmark/freesurfer_smoke
 ```
 
-Use `--device cuda` or `--device cuda:0` for VoxelMorph/TransMorph training and inference when a CUDA GPU is available:
+If CUDA is available, you can specify a GPU device for the learned methods:
 
 ```bash
 python scripts/run_benchmark.py --dataset-root data/oasis/freesurfer_3d_smoke --out outputs/benchmark/freesurfer_smoke_gpu --device cuda:0
@@ -178,12 +287,12 @@ python scripts/run_benchmark.py --dataset-root data/oasis/freesurfer_3d_smoke --
 
 Useful outputs:
 
-- `outputs/benchmark/oasis/benchmark_results.csv`
-- `outputs/benchmark/oasis/benchmark_results.json`
-- `outputs/benchmark/oasis/benchmark_summary.json`
-- `outputs/benchmark/oasis/benchmark_summary.md`
+- `outputs/benchmark/.../benchmark_results.csv`
+- `outputs/benchmark/.../benchmark_results.json`
+- `outputs/benchmark/.../benchmark_summary.json`
+- `outputs/benchmark/.../benchmark_summary.md`
 
-This benchmark is intended to verify runnable behavior and provide initial timing/similarity numbers. It is not a final scientific benchmark protocol.
+This benchmark is meant to confirm that the pipeline runs and to provide initial similarity and timing numbers. It is not a final scientific evaluation protocol.
 
 ## Repository Layout
 
@@ -199,7 +308,12 @@ src/
 scripts/
 configs/
 tests/
-outputs/
 README.md
 requirements.txt
 ```
+
+## Notes
+
+- External datasets are not required to reproduce the synthetic smoke tests.
+- The dataset helper scripts document manual download steps when a dataset cannot be fetched automatically.
+- Outputs are written under `outputs/` by default.

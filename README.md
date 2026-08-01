@@ -1,77 +1,109 @@
 # Fundamental Concepts and Methods in Biomedical Image Registration
 
-> **Group 15 - Computer Vision (IT4343E), Hanoi University of Science and Technology**
+> Group 15 - Computer Vision (IT4343E), Hanoi University of Science and Technology
+
+This project explains the core ideas behind biomedical image registration and compares four representative methods in one reproducible pipeline: **Diffeomorphic Demons**, **Particle Swarm Optimization (PSO)**, **VoxelMorph**, and **TransMorph**.
 
 <p align="center">
-  <img src="visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif" alt="VoxelMorph registration: transition from the moving image to the registered image" width="900">
-</p>
-
-<p align="center">
-  <a href="docs/Group_15_Report.pdf"><strong>Project Report</strong></a>
+  <a href="docs/Group_15_Report.pdf"><strong>Read the report</strong></a>
   &nbsp;&bull;&nbsp;
-  <a href="docs/Group_15_Presentation.pdf"><strong>Presentation</strong></a>
+  <a href="docs/Group_15_Presentation.pdf"><strong>View the presentation</strong></a>
+  &nbsp;&bull;&nbsp;
+  <a href="#reproduce-the-project"><strong>Reproduce the project</strong></a>
 </p>
 
-This repository studies the foundations of biomedical image registration and compares four representative approaches under one reproducible pipeline: **Diffeomorphic Demons**, **Particle Swarm Optimization (PSO)**, **VoxelMorph**, and **TransMorph**.
+## At a Glance
 
-| Member | Student ID |
-|---|---:|
-| Pham Cong Hoang | 202416698 |
-| Le Tien Hop | 202400105 |
-| Tran Phong Quan | 202416739 |
-| Luu Hieu An | 202400093 |
+| Item | Description |
+|---|---|
+| Task | Align a moving medical image with a fixed reference image |
+| Main dataset | OASIS-1 T1-weighted 3D brain MRI with FreeSurfer labels |
+| Compared methods | Diffeomorphic Demons, PSO affine, VoxelMorph, TransMorph |
+| Evaluation | MSE, NCC, Dice, runtime, and deformation regularity |
+| Reproducibility | Synthetic smoke tests and a full OASIS-1 3D benchmark pipeline |
 
 ## Contents
 
-1. [Introduction](#1-introduction)
-2. [Problem Overview](#2-problem-overview)
-3. [Methodology](#3-methodology)
-4. [Dataset](#4-dataset)
-5. [Experiment](#5-experiment)
-6. [Conclusion](#6-conclusion)
-7. [Reproduction Guide](#reproduction-guide)
+- [1. Introduction](#1-introduction)
+- [2. Problem Overview](#2-problem-overview)
+- [3. Methodology](#3-methodology)
+- [4. Dataset](#4-dataset)
+- [5. Experiment and Results](#5-experiment-and-results)
+- [6. Conclusion](#6-conclusion)
+- [Reproduce the Project](#reproduce-the-project)
+- [Repository Structure](#repository-structure)
+- [Project Documents and Team](#project-documents-and-team)
 
 ## 1. Introduction
 
-Biomedical image registration aligns two medical images so that corresponding anatomical structures occupy the same spatial coordinates. Given a **fixed image** as the reference and a **moving image** to transform, registration estimates the spatial mapping that best aligns them.
+Biomedical image registration aligns two medical images so that the same anatomical structures correspond spatially.
 
-Typical applications include longitudinal disease monitoring, atlas-based segmentation, image-guided intervention, and multimodal fusion of scans such as MRI, CT, and PET.
+- The **fixed image** is the reference.
+- The **moving image** is transformed.
+- The **registered image** is the warped moving image after alignment.
+
+Registration supports longitudinal disease monitoring, atlas-based segmentation, image-guided intervention, and multimodal fusion of scans such as MRI, CT, and PET.
+
+This project has three goals:
+
+1. explain the mathematical foundations of image registration;
+2. implement classical, metaheuristic, CNN-based, and Transformer-based methods; and
+3. compare their accuracy, speed, and deformation behavior on the same data.
 
 ## 2. Problem Overview
 
-For a fixed image $F$, moving image $M$, and spatial transformation $\phi$, the registered image is $M \circ \phi$. Registration solves an optimization problem of the form:
+Given a fixed image $F$, a moving image $M$, and a spatial transformation $\phi$, the registered image is $M \circ \phi$. Registration estimates the transformation that minimizes:
 
 $$
-\phi^* = \arg\min_{\phi \in \mathcal{T}} \; \mathcal{D}(F, M \circ \phi) + \lambda\mathcal{R}(\phi),
+\phi^* = \arg\min_{\phi \in \mathcal{T}}
+\left[\mathcal{D}(F, M \circ \phi) + \lambda\mathcal{R}(\phi)\right].
 $$
 
-where $\mathcal{D}$ measures image dissimilarity and $\mathcal{R}$ encourages a smooth, anatomically plausible transformation. This project reports **mean squared error (MSE)** and **normalized cross-correlation (NCC)** for intensity agreement, **Dice** for anatomical label overlap, runtime, and deformation regularity.
+| Term | Purpose |
+|---|---|
+| $\mathcal{D}(F, M \circ \phi)$ | Measures how different the fixed and registered images are |
+| $\mathcal{R}(\phi)$ | Penalizes irregular or anatomically implausible transformations |
+| $\lambda$ | Balances image matching and transformation regularity |
+| $\mathcal{T}$ | Defines the allowed transformation family |
 
-The implementation covers global rigid/affine transformations and dense deformable registration. The learned models are compact, runnable baselines rather than exact reproductions of the full original VoxelMorph and TransMorph training protocols.
+The project covers two broad transformation types:
+
+- **Rigid/affine registration** corrects global rotation, translation, scale, and shear.
+- **Dense deformable registration** predicts local displacement at every voxel.
+
+MSE and NCC measure intensity agreement, Dice measures anatomical label overlap, runtime measures computational cost, and the Jacobian determinant is used to inspect deformation regularity.
 
 ## 3. Methodology
 
-| Method | Family | Transformation | Main idea |
-|---|---|---|---|
-| Diffeomorphic Demons | Classical | Dense deformable | Iteratively estimate, smooth, and compose displacement updates. |
-| PSO | Metaheuristic | Rigid/affine | Treat each particle as a candidate transform and search the parameter space using swarm dynamics. |
-| VoxelMorph | Deep learning (CNN) | Dense deformable | Predict a displacement field in one forward pass and train without ground-truth deformations. |
-| TransMorph | Deep learning (Transformer) | Dense deformable | Use patch-level features and self-attention to capture long-range spatial context. |
+| Method | Family | Transformation | Core idea | Main trade-off |
+|---|---|---|---|---|
+| Diffeomorphic Demons | Classical | Dense deformable | Repeatedly estimate, smooth, and compose displacement updates | Stable and training-free, but conservatively configured |
+| PSO | Metaheuristic | Rigid/affine | Search the affine parameter space with a swarm of candidate transforms | Strong global alignment, but slow |
+| VoxelMorph | CNN | Dense deformable | Predict a displacement field in one forward pass using unsupervised image similarity | Fast and strong on intensity metrics |
+| TransMorph | Transformer | Dense deformable | Use patch features and self-attention to capture long-range context | Balanced overlap, speed, and regularity |
 
-The repository also includes synthetic 2D data generation, optional ANTsPyX SyN support, unit tests, smoke tests, benchmark scripts, and visualization utilities.
+The VoxelMorph-style and TransMorph-style networks in this repository are intentionally compact. They preserve the central ideas of the original methods, but are not exact reproductions of the full published architectures or training protocols.
 
 ## 4. Dataset
 
-The main experiment uses **OASIS-1**, a public collection of T1-weighted 3D brain MRI scans from normal and demented subjects. FreeSurfer-derived volumes provide MRI data and anatomical labels.
+### Main Experiment: OASIS-1
 
-- 424 adjacent registration pairs
-- 297 training pairs, 42 validation pairs, and 85 test pairs
-- volumes downsampled to $64 \times 64 \times 64$
-- evaluation labels derived from FreeSurfer segmentations
+The final benchmark uses OASIS-1, a public dataset of T1-weighted 3D brain MRI scans from normal and demented subjects. FreeSurfer-derived volumes provide MRI data and anatomical segmentation labels.
 
-Real OASIS-1 data do not provide dense ground-truth deformation fields. Dice is therefore computed from warped anatomical labels, while MSE and NCC evaluate intensity alignment.
+| Split | Adjacent pairs | Purpose |
+|---|---:|---|
+| Training | 297 | Train VoxelMorph and TransMorph |
+| Validation | 42 | Run held-out checks for the learned methods |
+| Test | 85 | Compare all four methods |
+| **Total** | **424** | Pair-level experimental dataset |
 
-## 5. Experiment
+All volumes are downsampled to $64 \times 64 \times 64$. OASIS-1 does not provide dense ground-truth deformation fields, so Dice is computed from warped FreeSurfer labels while MSE and NCC evaluate intensity alignment.
+
+### Synthetic Data
+
+The repository can also generate small 2D image pairs with known transformations. This path requires no external dataset and is intended for quick functional checks, development, and smoke testing.
+
+## 5. Experiment and Results
 
 ### Experimental Setup
 
@@ -85,83 +117,77 @@ Real OASIS-1 data do not provide dense ground-truth deformation fields. Dice is 
 
 ### Quantitative Results
 
+Arrows indicate the preferred direction for each metric. Values are reported as mean or mean ± standard deviation across the test set.
+
 | Method | Runtime (s) ↓ | MSE ↓ | NCC ↑ | Dice ↑ |
 |---|---:|---:|---:|---:|
 | Classical | 0.512 | 0.0137 ± 0.0081 | 0.732 ± 0.131 | 0.164 ± 0.0369 |
-| **PSO affine** | 9.362 | 0.0109 ± 0.0109 | 0.793 ± 0.192 | **0.331 ± 0.2035** |
-| **VoxelMorph** | **0.363** | **0.0089 ± 0.0129** | **0.827 ± 0.226** | 0.165 ± 0.0374 |
+| PSO affine | 9.362 | 0.0109 ± 0.0109 | 0.793 ± 0.192 | **0.331 ± 0.2035** |
+| VoxelMorph | **0.363** | **0.0089 ± 0.0129** | **0.827 ± 0.226** | 0.165 ± 0.0374 |
 | TransMorph | 0.385 | 0.0099 ± 0.0119 | 0.807 ± 0.206 | 0.219 ± 0.0917 |
 
-VoxelMorph achieves the best intensity-based performance and fastest mean runtime. PSO obtains the highest anatomical Dice, but is substantially slower. TransMorph provides a balanced learned dense-registration result, while Classical Demons remains a stable, training-free baseline.
+### How to Read the Results
 
-### Registration Visualizations
+- **Best intensity alignment:** VoxelMorph obtains the lowest MSE and highest NCC.
+- **Best anatomical overlap:** PSO affine obtains the highest Dice, but has the longest runtime.
+- **Balanced learned method:** TransMorph improves Dice and deformation regularity relative to the compact VoxelMorph model while remaining fast.
+- **Stable training-free baseline:** Diffeomorphic Demons requires no learned weights and produced the most conservative dense deformation field in this experiment.
 
-The animations fade between the original moving image and the registered result. In the overlay, closer red/green alignment indicates better agreement with the fixed image.
+No method wins every metric. The best choice depends on whether the downstream task prioritizes intensity matching, anatomical overlap, speed, or deformation regularity.
 
-| Classical Demons | PSO affine |
-|---|---|
-| ![Classical registration result](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_classical_fade.gif) | ![PSO registration result](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_pso_fade.gif) |
-| **VoxelMorph** | **TransMorph** |
-| ![VoxelMorph registration result](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif) | ![TransMorph registration result](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_transmorph_fade.gif) |
+### Registration Visualization
+
+The animation fades from the original moving image to the registered result. In the overlay, better agreement between the red and green structures indicates improved alignment with the fixed image.
+
+<p align="center">
+  <img src="visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif" alt="VoxelMorph moving-to-registered image transition and fixed-image overlay" width="900">
+</p>
 
 ### PSO Optimization Progress
 
+This animation shows how the best affine candidate changes over the PSO iterations.
+
 <p align="center">
-  <img src="visualize/oasis3d_benchmark_gifs/05_true_iterations/pair_033_pso_affine_true_iterations.gif" alt="PSO affine registration over optimization iterations" width="900">
+  <img src="visualize/oasis3d_benchmark_gifs/05_true_iterations/pair_033_pso_affine_true_iterations.gif" alt="PSO affine registration progress over optimization iterations" width="900">
 </p>
 
-Additional animations are available for [axial slice sweeps](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep), [deformation-field scale](visualize/oasis3d_benchmark_gifs/03_final_field_scale), and [anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours).
+More animations:
+
+- [moving-to-registered comparisons for all methods](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade)
+- [3D axial slice sweeps](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep)
+- [deformation-field scale](visualize/oasis3d_benchmark_gifs/03_final_field_scale)
+- [anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours)
+- [PSO iteration progress](visualize/oasis3d_benchmark_gifs/05_true_iterations)
 
 ## 6. Conclusion
 
-- No single method wins every criterion; registration quality is multi-dimensional.
-- VoxelMorph is the strongest option here for high-throughput intensity alignment.
-- PSO is effective for global anatomical overlap when its longer runtime is acceptable.
-- TransMorph offers the most balanced learned dense-registration trade-off in this benchmark.
-- Diffeomorphic Demons provides a conservative, training-free dense baseline.
+The benchmark shows that biomedical image registration is a multi-objective problem:
 
-A promising next step is a hybrid pipeline: global affine pre-alignment followed by learned dense refinement. Results should be interpreted within this experiment's limits, including $64^3$ resolution, a pair-level split, compact learned models, and FreeSurfer rather than manually verified landmark labels.
+- choose **VoxelMorph** for fast, high-throughput intensity alignment;
+- choose **PSO affine** when global anatomical overlap is the priority and longer runtime is acceptable;
+- choose **TransMorph** for a balanced learned dense-registration baseline; and
+- choose **Diffeomorphic Demons** for a stable, reproducible, training-free dense baseline.
 
-## Reproduction Guide
+A promising next step is a hybrid pipeline that performs global affine pre-alignment before learned dense refinement.
 
-## Repository Layout
+These conclusions are limited to the implementations and protocol in this repository. Important limitations include $64^3$ resolution, a pair-level rather than subject-level split, compact learned models, limited training and tuning, and FreeSurfer-derived labels instead of manually verified landmarks.
 
-```text
-BioMedReg/
-  configs/                 Training configs for synthetic, OASIS, and smoke runs
-  docs/                    Final report and presentation
-  scripts/                 Data preparation, smoke test, and benchmark scripts
-  src/
-    data/                  Dataset loading and synthetic data helpers
-    methods/
-      classical/           SimpleITK/ANTs registration wrappers
-      metaheuristic/       PSO registration baseline
-      voxelmorph/          VoxelMorph-style model, training, and inference
-      transmorph/          TransMorph-style model, training, and inference
-    utils/                 I/O, metrics, seeding, warping, visualization
-    run_method.py          Main CLI for running one registration method
-  tests/                   Unit tests
-  requirements.txt
-  README.md
-```
+## Reproduce the Project
 
-Run commands from the `BioMedReg/` directory unless noted otherwise:
+Run all commands from the repository root.
+
+### 1. Set Up the Environment
 
 ```bash
-cd BioMedReg
-```
+git clone https://github.com/kongwoang/Biomedical_Image_Registration.git
+cd Biomedical_Image_Registration
 
-## Environment Setup
-
-Create and activate a virtual environment:
-
-```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-If your machine already provides PyTorch, you can reuse system site packages:
+If PyTorch is already installed globally, the virtual environment can reuse it:
 
 ```bash
 python -m venv --system-site-packages .venv
@@ -169,13 +195,25 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Optional: install `antspyx` if you want to use the `ants_syn` classical backend. It is not required for the default smoke tests.
+`antspyx` is optional and is required only for the `ants_syn` classical backend.
 
-## Quick Reproduction
+### 2. Run the Fast Synthetic Smoke Test
 
-This path reproduces the project on synthetic data and does not require external datasets.
+This is the shortest end-to-end check. It generates synthetic data, runs all four methods, and verifies their output files.
 
-### 1. Generate Synthetic Data
+```bash
+bash scripts/run_all_smoke_tests.sh
+```
+
+Successful completion ends with:
+
+```text
+ALL 4 METHODS SMOKE TEST PASSED
+```
+
+### 3. Run Individual Methods
+
+First generate a larger synthetic sample:
 
 ```bash
 python scripts/make_synthetic_data.py \
@@ -185,16 +223,8 @@ python scripts/make_synthetic_data.py \
   --seed 7
 ```
 
-Generated files include:
-
-- `fixed_000.nii.gz`
-- `moving_000.nii.gz`
-- `gt_affine_000.json`
-- `gt_displacement_000.npy`
-- `preview_000.png`
-- `dataset.json`
-
-### 2. Run Classical Registration
+<details>
+<summary><strong>Classical registration</strong></summary>
 
 ```bash
 python -m src.run_method \
@@ -204,27 +234,12 @@ python -m src.run_method \
   --out outputs/classical
 ```
 
-Alternative classical backends:
+Use `--backend demons` for standard Demons or `--backend ants_syn` for the optional ANTsPyX SyN backend.
 
-```bash
-python -m src.run_method \
-  --method classical \
-  --backend demons \
-  --fixed data/synthetic/fixed_000.nii.gz \
-  --moving data/synthetic/moving_000.nii.gz \
-  --out outputs/classical_demons
-```
+</details>
 
-```bash
-python -m src.run_method \
-  --method classical \
-  --backend ants_syn \
-  --fixed data/synthetic/fixed_000.nii.gz \
-  --moving data/synthetic/moving_000.nii.gz \
-  --out outputs/classical_ants
-```
-
-### 3. Run PSO Registration
+<details>
+<summary><strong>PSO affine registration</strong></summary>
 
 ```bash
 python -m src.run_method \
@@ -238,13 +253,14 @@ python -m src.run_method \
   --transform affine
 ```
 
-### 4. Train and Run VoxelMorph
+</details>
+
+<details>
+<summary><strong>VoxelMorph training and inference</strong></summary>
 
 ```bash
 python -m src.methods.voxelmorph.train --config configs/voxelmorph.yaml
-```
 
-```bash
 python -m src.run_method \
   --method voxelmorph \
   --fixed data/synthetic/fixed_000.nii.gz \
@@ -253,13 +269,14 @@ python -m src.run_method \
   --out outputs/voxelmorph_infer
 ```
 
-### 5. Train and Run TransMorph
+</details>
+
+<details>
+<summary><strong>TransMorph training and inference</strong></summary>
 
 ```bash
 python -m src.methods.transmorph.train --config configs/transmorph.yaml
-```
 
-```bash
 python -m src.run_method \
   --method transmorph \
   --fixed data/synthetic/fixed_000.nii.gz \
@@ -268,62 +285,19 @@ python -m src.run_method \
   --out outputs/transmorph_infer
 ```
 
-## Smoke Tests
+</details>
 
-Run the complete synthetic smoke test:
+### 4. Run the OASIS-1 FreeSurfer Pipeline
 
-```bash
-bash scripts/run_all_smoke_tests.sh
-```
-
-Expected final line:
-
-```text
-ALL 4 METHODS SMOKE TEST PASSED
-```
-
-This script generates a small synthetic dataset, runs all four methods, and checks that each method writes the expected outputs.
-
-## Outputs
-
-Most method runs write the following files under the selected output directory:
-
-- `registered.nii.gz`: warped moving image
-- `overlay.png`: fixed/moving/registered visual comparison
-- `metrics.json`: before/after similarity metrics
-- `log.json`: run metadata and output paths
-- `deformation_field.npy` and `deformation_field.nii.gz`: dense field for classical and learned methods
-- `transform_params.json`: transform parameters for PSO
-
-The main reported metrics are mean squared error (MSE) and normalized cross-correlation (NCC), measured before and after registration.
-
-## OASIS-1 FreeSurfer Reproduction
-
-The synthetic path above is enough to verify the repository. For 3D experiments, this repo also supports OASIS-1 FreeSurfer subject archives. These archives contain MRI volumes and labels such as `T1.mgz`, `aseg.mgz`, and `aparc+aseg.mgz`.
-
-### 1. Download and Extract FreeSurfer Data
+Download and extract the FreeSurfer subject archives:
 
 ```bash
 python scripts/download_freesurfer_discs.py --disc 1-11
 ```
 
-By default, the extraction keeps only the files needed by this project:
+The downloader retains only the MRI volumes, anatomical labels, and metadata needed by the project. Extracted subjects are written under `data/oasis/freesurfer/subjects/`.
 
-- `mri/T1.mgz`
-- `mri/norm.mgz`
-- `mri/brain.mgz`
-- `mri/brainmask.mgz`
-- `mri/aseg.mgz`
-- `mri/aparc+aseg.mgz`
-- `label/*.label`
-
-Extracted subjects are written to:
-
-```text
-data/oasis/freesurfer/subjects/
-```
-
-### 2. Prepare Small 3D Registration Pairs
+For a small 3D functional check, prepare three pairs and run the FreeSurfer smoke test:
 
 ```bash
 python scripts/prepare_freesurfer_3d.py \
@@ -331,107 +305,86 @@ python scripts/prepare_freesurfer_3d.py \
   --out data/oasis/freesurfer_3d_smoke \
   --num_pairs 3 \
   --size 32
-```
 
-Prepared pairs include:
-
-- `fixed_000.nii.gz`
-- `moving_000.nii.gz`
-- `fixed_label_000.nii.gz`
-- `moving_label_000.nii.gz`
-- `preview_000.png`
-- `pair_000.json`
-- `dataset.json`
-
-Real OASIS-1 FreeSurfer data provide anatomical labels but not dense ground-truth deformation fields. The prepared dataset stores subject metadata instead of synthetic ground-truth transforms.
-
-### 3. Run the FreeSurfer Smoke Test
-
-```bash
 bash scripts/run_freesurfer_smoke_tests.sh
 ```
 
-Expected final line:
-
-```text
-ALL 4 FREESURFER METHODS SMOKE TEST PASSED
-```
-
-The script expects either extracted Disc 1 subjects at `data/oasis/freesurfer/subjects/disc1` or an archive at `data/oasis/freesurfer/raw/oasis_cs_freesurfer_disc1.tar.gz`.
-
-## Benchmarking
-
-Run a small functional benchmark over prepared NIfTI pairs:
+For the split-aware 3D benchmark used by the project, run:
 
 ```bash
-python scripts/run_benchmark.py \
-  --dataset-root data/oasis/freesurfer_3d_smoke \
-  --out outputs/benchmark/freesurfer_smoke
+CUDA_VISIBLE_DEVICES=0 \
+VOXELMORPH_DEVICE=cuda:0 \
+TRANSMORPH_DEVICE=cuda:0 \
+SIZE=64 \
+DEEP_EPOCHS=20 \
+PSO_PARTICLES=16 \
+PSO_ITERS=30 \
+PSO_TRANSFORM=affine \
+bash scripts/run_oasis1_3d_functional_benchmark.sh
 ```
 
-Limit the number of pairs:
+This full pipeline requires a CUDA-capable environment. `NUM_PAIRS` can be set to limit the run during development.
 
-```bash
-python scripts/run_benchmark.py \
-  --dataset-root data/oasis/freesurfer_3d_smoke \
-  --out outputs/benchmark/freesurfer_smoke \
-  --num-pairs 2
-```
+### 5. Outputs
 
-Use existing checkpoints instead of retraining learned methods:
+Most method runs write:
 
-```bash
-python scripts/run_benchmark.py \
-  --dataset-root data/oasis/freesurfer_3d_smoke \
-  --out outputs/benchmark/freesurfer_smoke \
-  --skip-training \
-  --voxelmorph-checkpoint outputs/freesurfer_smoke/voxelmorph_train/best.pt \
-  --transmorph-checkpoint outputs/freesurfer_smoke/transmorph_train/best.pt
-```
+| File | Description |
+|---|---|
+| `registered.nii.gz` | Warped moving image |
+| `overlay.png` | Fixed, moving, and registered visual comparison |
+| `metrics.json` | Before/after similarity metrics |
+| `log.json` | Run configuration, metadata, and output paths |
+| `deformation_field.npy` / `.nii.gz` | Dense field produced by classical and learned methods |
+| `transform_params.json` | Rigid/affine parameters produced by PSO |
 
-Benchmark outputs:
+Benchmark runs additionally produce `benchmark_results.csv`, `benchmark_results.json`, `benchmark_summary.json`, and `benchmark_summary.md`.
 
-- `benchmark_results.csv`
-- `benchmark_results.json`
-- `benchmark_summary.json`
-- `benchmark_summary.md`
-- per-method run folders under `runs/`
+### 6. Tests and Configuration
 
-The benchmark is intended to check pipeline functionality and produce initial timing/similarity numbers. It is not a final scientific evaluation protocol.
-
-## Testing
-
-Run unit tests:
+Run the unit tests:
 
 ```bash
 python -m pytest -q
 ```
 
-Run smoke tests:
+Training configurations live in `configs/`:
 
-```bash
-bash scripts/run_all_smoke_tests.sh
-```
-
-## Configuration
-
-Training configs live in `configs/`.
-
-Useful starting points:
-
-- `configs/voxelmorph.yaml`: synthetic VoxelMorph training
-- `configs/transmorph.yaml`: synthetic TransMorph training
-- `configs/voxelmorph_smoke.yaml`: tiny synthetic smoke config
-- `configs/transmorph_smoke.yaml`: tiny synthetic smoke config
-- `configs/voxelmorph_freesurfer_smoke.yaml`: tiny 3D FreeSurfer smoke config
-- `configs/transmorph_freesurfer_smoke.yaml`: tiny 3D FreeSurfer smoke config
+- `voxelmorph.yaml` and `transmorph.yaml`: standard synthetic training
+- `voxelmorph_smoke.yaml` and `transmorph_smoke.yaml`: small synthetic smoke runs
+- `voxelmorph_freesurfer_smoke.yaml` and `transmorph_freesurfer_smoke.yaml`: small 3D FreeSurfer runs
 
 Edit `data.root`, `output_dir`, model size, epoch count, batch size, and device settings as needed.
 
-## Notes
+## Repository Structure
 
-- External datasets are not required for the synthetic reproduction path.
-- Outputs are written under `outputs/` by default.
-- Dataset files are expected under `data/` by default.
-- Commands using `python -m src...` should be run from the repository root directory `BioMedReg/`.
-- The optional `ants_syn` backend requires `antspyx`; default classical runs use SimpleITK.
+```text
+Biomedical_Image_Registration/
+├── configs/                 # Training and smoke-test configurations
+├── docs/                    # Final report and presentation
+├── scripts/                 # Data preparation, benchmark, and visualization scripts
+├── src/
+│   ├── data/                # Dataset loading and synthetic data generation
+│   ├── methods/
+│   │   ├── classical/       # SimpleITK and optional ANTs registration
+│   │   ├── metaheuristic/   # PSO registration
+│   │   ├── voxelmorph/      # CNN model, training, and inference
+│   │   └── transmorph/      # Transformer model, training, and inference
+│   └── utils/               # Metrics, warping, I/O, and visualization
+├── tests/                   # Unit tests
+└── visualize/               # Benchmark figures, notebooks, and GIF animations
+```
+
+The main command-line entry point for a single registration pair is `python -m src.run_method`.
+
+## Project Documents and Team
+
+- [Final report](docs/Group_15_Report.pdf)
+- [Final presentation](docs/Group_15_Presentation.pdf)
+
+| Member | Student ID | Main contribution |
+|---|---:|---|
+| Pham Cong Hoang | 202416698 | Project lead, slides, report, visualizations, VoxelMorph |
+| Le Tien Hop | 202400105 | Data preprocessing, classical methods, report |
+| Tran Phong Quan | 202416739 | TransMorph, report, literature survey |
+| Luu Hieu An | 202400093 | PSO, visualizations |

@@ -12,6 +12,16 @@ This project explains the core ideas behind biomedical image registration and co
   <a href="#reproduce-the-project"><strong>Reproduce the project</strong></a>
 </p>
 
+## Animated Registration Comparison
+
+The animations fade from each original moving image to its registered result. In the overlays, closer agreement between the red and green structures indicates better alignment with the fixed image.
+
+| Classical Demons | PSO affine |
+|---|---|
+| ![Classical moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_classical_fade.gif) | ![PSO moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_pso_fade.gif) |
+| **VoxelMorph** | **TransMorph** |
+| ![VoxelMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif) | ![TransMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_transmorph_fade.gif) |
+
 ## Team
 
 | Member | Student ID | Main contribution |
@@ -190,16 +200,6 @@ Dice also varies substantially by anatomical structure. Large regions such as ce
 </p>
 
 </details>
-
-### Animated Registration Comparison
-
-The animation fades from the original moving image to the registered result. In the overlay, better agreement between the red and green structures indicates improved alignment with the fixed image.
-
-| Classical Demons | PSO affine |
-|---|---|
-| ![Classical moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_classical_fade.gif) | ![PSO moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_pso_fade.gif) |
-| **VoxelMorph** | **TransMorph** |
-| ![VoxelMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif) | ![TransMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_transmorph_fade.gif) |
 
 ### PSO Optimization Progress
 

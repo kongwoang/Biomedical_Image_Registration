@@ -12,6 +12,15 @@ This project explains the core ideas behind biomedical image registration and co
   <a href="#reproduce-the-project"><strong>Reproduce the project</strong></a>
 </p>
 
+## Team
+
+| Member | Student ID | Main contribution |
+|---|---:|---|
+| Pham Cong Hoang | 202416698 | Project lead, slides, report, visualizations, VoxelMorph |
+| Le Tien Hop | 202400105 | Data preprocessing, classical methods, report |
+| Tran Phong Quan | 202416739 | TransMorph, report, literature survey |
+| Luu Hieu An | 202400093 | PSO, visualizations |
+
 ## At a Glance
 
 | Item | Description |
@@ -32,7 +41,7 @@ This project explains the core ideas behind biomedical image registration and co
 - [6. Conclusion](#6-conclusion)
 - [Reproduce the Project](#reproduce-the-project)
 - [Repository Structure](#repository-structure)
-- [Project Documents and Team](#project-documents-and-team)
+- [Project Documents](#project-documents)
 
 ## 1. Introduction
 
@@ -135,13 +144,62 @@ Arrows indicate the preferred direction for each metric. Values are reported as 
 
 No method wins every metric. The best choice depends on whether the downstream task prioritizes intensity matching, anatomical overlap, speed, or deformation regularity.
 
-### Registration Visualization
+### Result Dashboard
+
+The following charts provide complementary views of the 85-pair test set. The summary chart shows the means reported in the table, while the distributions expose pair-to-pair variation.
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/summary_metrics.png" alt="Mean MSE, NCC, Dice, and runtime for the four registration methods" width="900">
+</p>
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/metric_distributions.png" alt="Test-pair distributions of MSE, NCC, Dice, runtime, NCC improvement, and Jacobian folding" width="900">
+</p>
+
+VoxelMorph wins NCC on 54 of 85 test pairs, while PSO wins Dice on 55 pairs. The winner counts show that the mean results are supported across many test cases rather than by only a few outliers.
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/method_win_counts.png" alt="Per-pair winner counts for NCC, Dice, runtime, and deformation folding" width="900">
+</p>
+
+The plots below highlight two important trade-offs: runtime versus mean quality, and the fact that high intensity agreement does not always imply high anatomical overlap.
+
+| Runtime-quality trade-off | Pair-level NCC versus Dice |
+|---|---|
+| ![Runtime versus NCC and Dice](visualize/oasis1_3d_functional_20260527_025659/runtime_quality_tradeoff.png) | ![NCC versus Dice for all test pairs](visualize/oasis1_3d_functional_20260527_025659/ncc_vs_dice_scatter.png) |
+
+### Learned-Model Training and Anatomical Results
+
+VoxelMorph and TransMorph were trained for 20 epochs. The training curves separate total loss, image-similarity loss, and deformation smoothness loss.
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/training_loss_curves.png" alt="VoxelMorph and TransMorph training loss curves over 20 epochs" width="900">
+</p>
+
+Dice also varies substantially by anatomical structure. Large regions such as cerebral white matter are generally easier to align than small subcortical structures at $64^3$ resolution.
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/label_dice_heatmap.png" alt="Mean Dice score by FreeSurfer anatomical label and registration method" width="900">
+</p>
+
+<details>
+<summary><strong>Show a full qualitative comparison for test pair 073</strong></summary>
+
+<p align="center">
+  <img src="visualize/oasis1_3d_functional_20260527_025659/qualitative_pair_073.png" alt="Before and after registration comparison for all four methods on test pair 073" width="900">
+</p>
+
+</details>
+
+### Animated Registration Comparison
 
 The animation fades from the original moving image to the registered result. In the overlay, better agreement between the red and green structures indicates improved alignment with the fixed image.
 
-<p align="center">
-  <img src="visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif" alt="VoxelMorph moving-to-registered image transition and fixed-image overlay" width="900">
-</p>
+| Classical Demons | PSO affine |
+|---|---|
+| ![Classical moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_classical_fade.gif) | ![PSO moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_pso_fade.gif) |
+| **VoxelMorph** | **TransMorph** |
+| ![VoxelMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_voxelmorph_fade.gif) | ![TransMorph moving-to-registered animation](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade/median_after_ncc_pair_033_transmorph_fade.gif) |
 
 ### PSO Optimization Progress
 
@@ -151,7 +209,42 @@ This animation shows how the best affine candidate changes over the PSO iteratio
   <img src="visualize/oasis3d_benchmark_gifs/05_true_iterations/pair_033_pso_affine_true_iterations.gif" alt="PSO affine registration progress over optimization iterations" width="900">
 </p>
 
-More animations:
+### More 3D Visualizations
+
+<details>
+<summary><strong>Axial slice sweeps</strong></summary>
+
+| Classical Demons | PSO affine |
+|---|---|
+| ![Classical axial slice sweep](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep/pair_033_classical_axial_sweep.gif) | ![PSO axial slice sweep](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep/pair_033_pso_axial_sweep.gif) |
+| **VoxelMorph** | **TransMorph** |
+| ![VoxelMorph axial slice sweep](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep/pair_033_voxelmorph_axial_sweep.gif) | ![TransMorph axial slice sweep](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep/pair_033_transmorph_axial_sweep.gif) |
+
+</details>
+
+<details>
+<summary><strong>Anatomical label contours</strong></summary>
+
+| Classical Demons | PSO affine |
+|---|---|
+| ![Classical anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours/pair_033_classical_label_contours.gif) | ![PSO anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours/pair_033_pso_label_contours.gif) |
+| **VoxelMorph** | **TransMorph** |
+| ![VoxelMorph anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours/pair_033_voxelmorph_label_contours.gif) | ![TransMorph anatomical label contours](visualize/oasis3d_benchmark_gifs/04_label_contours/pair_033_transmorph_label_contours.gif) |
+
+</details>
+
+<details>
+<summary><strong>Dense deformation-field scale</strong></summary>
+
+PSO is omitted because it estimates a global affine transform rather than a dense displacement field.
+
+| Classical Demons | VoxelMorph | TransMorph |
+|---|---|---|
+| ![Classical deformation-field scale](visualize/oasis3d_benchmark_gifs/03_final_field_scale/pair_033_classical_field_scale.gif) | ![VoxelMorph deformation-field scale](visualize/oasis3d_benchmark_gifs/03_final_field_scale/pair_033_voxelmorph_field_scale.gif) | ![TransMorph deformation-field scale](visualize/oasis3d_benchmark_gifs/03_final_field_scale/pair_033_transmorph_field_scale.gif) |
+
+</details>
+
+Direct links to each animation collection:
 
 - [moving-to-registered comparisons for all methods](visualize/oasis3d_benchmark_gifs/01_moving_to_registered_fade)
 - [3D axial slice sweeps](visualize/oasis3d_benchmark_gifs/02_axial_slice_sweep)
@@ -377,14 +470,7 @@ Biomedical_Image_Registration/
 
 The main command-line entry point for a single registration pair is `python -m src.run_method`.
 
-## Project Documents and Team
+## Project Documents
 
 - [Final report](docs/Group_15_Report.pdf)
 - [Final presentation](docs/Group_15_Presentation.pdf)
-
-| Member | Student ID | Main contribution |
-|---|---:|---|
-| Pham Cong Hoang | 202416698 | Project lead, slides, report, visualizations, VoxelMorph |
-| Le Tien Hop | 202400105 | Data preprocessing, classical methods, report |
-| Tran Phong Quan | 202416739 | TransMorph, report, literature survey |
-| Luu Hieu An | 202400093 | PSO, visualizations |
